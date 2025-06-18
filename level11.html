@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Letter Spider - 字母蜘蛛游戏</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <!-- Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4F46E5', // 主色调：靛蓝色
+                        secondary: '#EC4899', // 辅助色：粉色
+                        accent: '#F59E0B', // 强调色：琥珀色
+                        dark: '#1F2937', // 深色
+                        light: '#F9FAFB', // 浅色
+                        success: '#10B981', // 成功色
+                        error: '#EF4444', // 错误色
+                        info: '#3B82F6', // 信息色
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        display: ['Montserrat', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <!-- 自定义工具类 -->
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .dice-face {
+                @apply relative flex items-center justify-center rounded-xl shadow-lg transition-all duration-300 cursor-pointer aspect-square bg-white border-2 border-gray-200 hover:border-primary hover:shadow-xl;
+            }
+            .dice-letter {
+                @apply text-[clamp(1.5rem,5vw,2.5rem)] font-bold text-dark;
+            }
+            .btn-primary {
+                @apply bg-primary hover:bg-primary/90 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/50;
+            }
+            .btn-secondary {
+                @apply bg-secondary hover:bg-secondary/90 text-white font-bold py-2 px-4 rounded-lg shadow transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-secondary/50;
+            }
+            .btn-reset {
+                @apply bg-error hover:bg-error/90 text-white font-bold py-2 px-4 rounded-lg shadow transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-error/50;
+            }
+            .score-card {
+                @apply bg-white rounded-xl shadow-lg p-4 transition-all duration-300 hover:shadow-xl;
+            }
+            .word-list-item {
+                @apply flex justify-between items-center p-3 rounded-lg mb-2 bg-light hover:bg-gray-100 transition-all duration-200;
+            }
+            .shake {
+                animation: shake 0.5s;
+            }
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+                20%, 40%, 60%, 80% { transform: translateX(5px); }
+            }
+            .bounce-in {
+                animation: bounce-in 0.5s;
+            }
+            @keyframes bounce-in {
+                0% { transform: scale(0); }
+                60% { transform: scale(1.1); }
+                100% { transform: scale(1); }
+            }
+            .fade-in {
+                animation: fade-in 0.5s;
+            }
+            @keyframes fade-in {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            .dice-roll {
+                animation: dice-roll 0.8s ease-out;
+            }
+            @keyframes dice-roll {
+                0% { transform: rotate(0deg) scale(1); }
+                50% { transform: rotate(360deg) scale(1.2); }
+                100% { transform: rotate(0deg) scale(1); }
+            }
+            .pulse {
+                animation: pulse 1.5s infinite;
+            }
+            @keyframes pulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+                100% { transform: scale(1); }
+            }
+            .scale-in {
+                animation: scale-in 0.3s ease-out;
+            }
+            @keyframes scale-in {
+                from { transform: scale(0.8); opacity: 0; }
+                to { transform: scale(1); opacity: 1; }
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 to-purple-50 min-h-screen font-sans text-dark">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- 游戏标题 -->
+        <header class="text-center mb-10">
+            <h1 class="text-[clamp(2rem,6vw,3.5rem)] font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary mb-4">
+                Letter Spider
+            </h1>
+            <p class="text-gray-600 text-lg max-w-2xl mx-auto">掷骰子获得字母，组成单词赢取分数！</p>
+        </header>
+        
+        <!-- 游戏主区域 -->
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- 左侧：游戏信息和控制 -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- 游戏说明卡片 -->
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h2 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fa fa-info-circle text-primary mr-2"></i>游戏规则
+                    </h2>
+                    <ul class="space-y-2 text-gray-700">
+                        <li class="flex items-start">
+                            <i class="fa fa-check-circle text-accent mt-1 mr-2"></i>
+                            <span>点击"掷骰子"按钮获得6个随机字母</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa fa-check-circle text-accent mt-1 mr-2"></i>
+                            <span>使用这些字母组成英文单词（至少3个字母）</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa fa-check-circle text-accent mt-1 mr-2"></i>
+                            <span>单词长度决定得分：3字母=3分，4字母=4分，以此类推</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fa fa-check-circle text-accent mt-1 mr-2"></i>
+                            <span>每个单词只能使用一次，重复单词不计分</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- 分数卡片 -->
+                <div class="score-card">
+                    <h2 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fa fa-trophy text-accent mr-2"></i>你的分数
+                    </h2>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="text-gray-600">当前得分</p>
+                            <p id="current-score" class="text-4xl font-bold text-primary">0</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-gray-600">已找到单词</p>
+                            <p id="words-found" class="text-2xl font-bold text-secondary">0</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 游戏进度 -->
+                    <div class="mt-4">
+                        <div class="flex justify-between text-sm mb-1">
+                            <span>游戏进度</span>
+                            <span id="progress-text">0%</span>
+                        </div>
+                        <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div id="progress-bar" class="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 已找到的单词 -->
+                <div class="score-card">
+                    <h2 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fa fa-list-ul text-primary mr-2"></i>已找到的单词
+                    </h2>
+                    <div id="word-list" class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                        <p class="text-gray-500 italic text-center">还没有找到任何单词</p>
+                    </div>
+                </div>
+                
+                <!-- 游戏控制 -->
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h2 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fa fa-gamepad text-accent mr-2"></i>游戏控制
+                    </h2>
+                    <div class="flex gap-3">
+                        <button id="reset-game" class="btn-reset w-full">
+                            <i class="fa fa-refresh mr-2"></i>重新开始
+                        </button>
+                        <button id="hint-button" class="btn-secondary w-full">
+                            <i class="fa fa-lightbulb-o mr-2"></i>提示
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧：游戏核心区域 -->
+            <div class="lg:col-span-2 space-y-8">
+                <!-- 骰子区域 -->
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h2 class="text-xl font-bold mb-6 flex items-center">
+                        <i class="fa fa-cubes text-primary mr-2"></i>骰子字母
+                    </h2>
+                    
+                    <div id="dice-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 mb-6">
+                        <!-- 骰子将通过JS动态生成 -->
+                    </div>
+                    
+                    <div class="flex justify-center">
+                        <button id="roll-dice" class="btn-primary">
+                            <i class="fa fa-refresh mr-2"></i>掷骰子
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 单词输入区域 -->
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h2 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fa fa-pencil text-primary mr-2"></i>输入单词
+                    </h2>
+                    
+                    <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                        <input 
+                            type="text" 
+                            id="word-input" 
+                            class="flex-grow py-3 px-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
+                            placeholder="输入你组成的单词..."
+                            disabled
+                        >
+                        <button 
+                            id="submit-word" 
+                            class="btn-secondary"
+                            disabled
+                        >
+                            <i class="fa fa-check mr-2"></i>提交
+                        </button>
+                    </div>
+                    
+                    <div id="message-area" class="p-3 rounded-lg mb-2 text-center hidden"></div>
+                    
+                    <!-- 已选择的字母 -->
+                    <div id="selected-letters" class="mt-4 p-3 bg-gray-50 rounded-lg text-center">
+                        <p class="text-gray-500 text-sm mb-1">已选择的字母</p>
+                        <div id="selected-letters-display" class="text-xl font-bold text-primary"></div>
+                    </div>
+                </div>
+                
+                <!-- 游戏统计 -->
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h2 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fa fa-bar-chart text-accent mr-2"></i>游戏统计
+                    </h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-light rounded-lg p-4 text-center">
+                            <p class="text-gray-600 text-sm">最长单词</p>
+                            <p id="longest-word" class="text-2xl font-bold text-primary">-</p>
+                        </div>
+                        <div class="bg-light rounded-lg p-4 text-center">
+                            <p class="text-gray-600 text-sm">最高得分单词</p>
+                            <p id="highest-score-word" class="text-2xl font-bold text-secondary">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- 游戏结束弹窗 -->
+        <div id="game-over-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4 scale-in">
+                <div class="text-center">
+                    <h2 class="text-3xl font-bold text-primary mb-4">游戏结束!</h2>
+                    <p class="text-xl mb-6">恭喜你完成了游戏!</p>
+                    
+                    <div class="bg-light rounded-lg p-4 mb-6">
+                        <p class="text-gray-600">最终得分</p>
+                        <p id="final-score" class="text-4xl font-bold text-primary">0</p>
+                    </div>
+                    
+                    <div class="bg-light rounded-lg p-4 mb-6">
+                        <p class="text-gray-600">找到的单词总数</p>
+                        <p id="final-words-found" class="text-3xl font-bold text-secondary">0</p>
+                    </div>
+                    
+                    <div class="flex gap-3">
+                        <button id="play-again" class="btn-primary flex-1">
+                            <i class="fa fa-refresh mr-2"></i>再玩一次
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 页脚 -->
+        <footer class="mt-12 text-center text-gray-500">
+            <p>© 2025 Letter Spider 游戏 | 设计与开发</p>
+        </footer>
+    </div>
+
+    <script>
+        // 游戏数据
+        const gameState = {
+            currentLetters: [],
+            score: 0,
+            wordsFound: [],
+            lettersUsed: [],
+            isRolling: false,
+            gamesPlayed: 0,
+            longestWord: '',
+            highestScoreWord: '',
+            // 简化版字典，实际游戏中可以使用完整的英文词典
+            dictionary: new Set([
+                'cat', 'dog', 'bat', 'hat', 'mat', 'rat', 'map', 'pen', 'hen', 'net',
+                'cap', 'cup', 'bug', 'bus', 'car', 'far', 'bar', 'jar', 'war', 'are',
+                'and', 'ant', 'any', 'ape', 'apt', 'arc', 'arm', 'art', 'ask', 'ate',
+                'bad', 'bag', 'ban', 'bat', 'bay', 'bed', 'bee', 'beg', 'bet', 'bid',
+                'big', 'bin', 'bit', 'boa', 'bob', 'box', 'boy', 'bus', 'but', 'buy',
+                'bye', 'cab', 'cad', 'cam', 'can', 'cap', 'car', 'cat', 'cow', 'cub',
+                'cup', 'cut', 'dad', 'dam', 'day', 'den', 'dew', 'did', 'die', 'dig',
+                'dim', 'din', 'dip', 'doe', 'dog', 'dot', 'dry', 'dug', 'dye', 'ear',
+                'eat', 'egg', 'elk', 'end', 'era', 'eve', 'even', 'ever', 'eye', 'far',
+                'fat', 'fax', 'fed', 'fee', 'few', 'fix', 'fly', 'for', 'fox', 'fro',
+                'fun', 'fur', 'gas', 'gap', 'gar', 'gas', 'gate', 'get', 'goat', 'god',
+                'gold', 'good', 'got', 'gum', 'gun', 'guy', 'gym', 'had', 'has', 'hat',
+                'have', 'he', 'head', 'hear', 'heart', 'heat', 'hen', 'her', 'here', 'hey',
+                'hi', 'hide', 'hill', 'him', 'his', 'hit', 'ho', 'hog', 'home', 'hop', 'hot',
+                'how', 'hub', 'hum', 'hut', 'ice', 'if', 'ill', 'in', 'ink', 'is', 'it', 'its',
+                'job', 'jog', 'jet', 'jam', 'jar', 'jazz', 'joke', 'juice', 'jump', 'just',
+                'kid', 'kind', 'kit', 'kite', 'knee', 'knife', 'know', 'lab', 'lad', 'lag',
+                'lake', 'lamp', 'land', 'lap', 'last', 'late', 'law', 'lay', 'lead', 'leaf',
+                'lean', 'leap', 'learn', 'less', 'let', 'lie', 'life', 'lift', 'light', 'like',
+                'line', 'lip', 'list', 'lit', 'live', 'lock', 'log', 'lot', 'love', 'low',
+                'lug', 'luck', 'lunch', 'lung', 'lure', 'lye', 'mad', 'mag', 'man', 'map',
+                'mark', 'mat', 'may', 'me', 'meal', 'mean', 'meat', 'meet', 'men', 'mess',
+                'met', 'mid', 'mile', 'milk', 'mill', 'mind', 'mine', 'mines', 'miss', 'mist',
+                'mix', 'mob', 'mock', 'mod', 'mom', 'moon', 'mop', 'more', 'most', 'mother',
+                'motel', 'moth', 'motor', 'mound', 'mouse', 'mouth', 'move', 'much', 'mug',
+                'mule', 'multiply', 'music', 'must', 'my', 'name', 'nap', 'naps', 'narrow',
+                'near', 'neck', 'need', 'needle', 'neighbor', 'net', 'new', 'news', 'next',
+                'nice', 'night', 'nine', 'no', 'noble', 'nod', 'noise', 'none', 'noon', 'nor',
+                'north', 'nose', 'not', 'note', 'now', 'nut', 'oak', 'oar', 'oil', 'old', 'on',
+                'one', 'only', 'onto', 'open', 'or', 'orange', 'order', 'other', 'our', 'out',
+                'over', 'own', 'pack', 'page', 'pail', 'pain', 'pair', 'park', 'part', 'pass',
+                'past', 'path', 'pay', 'peace', 'pen', 'pens', 'people', 'per', 'pet', 'phone',
+                'pick', 'picture', 'pig', 'pile', 'pin', 'pine', 'pink', 'pipe', 'pitch', 'pity',
+                'place', 'plan', 'plane', 'plant', 'plate', 'play', 'please', 'plus', 'pocket', 'point',
+                'poison', 'pole', 'police', 'pond', 'pool', 'poor', 'pop', 'port', 'pot', 'potato',
+                'pour', 'power', 'press', 'price', 'pride', 'print', 'prior', 'prize', 'pro', 'problem',
+                'process', 'produce', 'program', 'project', 'promise', 'protect', 'proud', 'prove', 'pull',
+                'pupil', 'puppy', 'pure', 'purse', 'push', 'put', 'quality', 'question', 'quick', 'quiet',
+                'quite', 'rabbit', 'race', 'radio', 'rail', 'rain', 'raise', 'range', 'rat', 'rate',
+                'raw', 'ray', 'read', 'ready', 'real', 'reason', 'red', 'reduce', 'refer', 'refuse',
+                'region', 'regret', 'regular', 'related', 'remain', 'remember', 'remove', 'repeat', 'report', 'represent',
+                'require', 'research', 'resource', 'rest', 'result', 'return', 'rice', 'rich', 'ride', 'right',
+                'ring', 'rise', 'river', 'road', 'rock', 'role', 'roll', 'roof', 'room', 'root',
+                'rose', 'rough', 'round', 'route', 'row', 'rub', 'rule', 'run', 'rush', 'sad',
+                'safe', 'said', 'sail', 'sale', 'salt', 'same', 'sand', 'sat', 'save', 'say',
+                'scale', 'scene', 'school', 'science', 'scissors', 'score', 'sea', 'search', 'seat', 'second',
+                'secret', 'see', 'seed', 'seem', 'sell', 'send', 'sense', 'sentence', 'separate', 'serve',
+                'seven', 'several', 'shade', 'shake', 'shall', 'shape', 'share', 'sharp', 'she', 'sheep',
+                'sheet', 'shelf', 'shine', 'ship', 'shirt', 'shoe', 'shoot', 'shop', 'short', 'should',
+                'shout', 'show', 'shut', 'sick', 'side', 'sight', 'sign', 'silk', 'silver', 'similar',
+                'simple', 'since', 'sing', 'singer', 'single', 'sink', 'sir', 'sit', 'site', 'six',
+                'size', 'skate', 'ski', 'skill', 'skin', 'skirt', 'sky', 'sleep', 'slip', 'slow',
+                'small', 'smell', 'smile', 'smoke', 'snow', 'so', 'soap', 'social', 'sock', 'soft',
+                'soil', 'soldier', 'solid', 'some', 'someone', 'something', 'sometimes', 'son', 'song', 'soon',
+                'sorry', 'sort', 'sound', 'soup', 'south', 'space', 'speak', 'special', 'speed', 'spell',
+                'spend', 'spider', 'spoon', 'sport', 'spring', 'square', 'stage', 'stair', 'stamp', 'stand',
+                'star', 'start', 'state', 'station', 'stay', 'steal', 'steam', 'steel', 'step', 'stick',
+                'still', 'stomach', 'stone', 'stop', 'store', 'storm', 'story', 'straight', 'strange', 'street',
+                'strong', 'structure', 'student', 'study', 'stupid', 'subject', 'substance', 'such', 'suddenly', 'sugar',
+                'suggest', 'summer', 'sun', 'Sunday', 'sunny', 'support', 'suppose', 'sure', 'surface', 'surprise',
+                'sweet', 'swim', 'system', 'table', 'tail', 'take', 'talk', 'tall', 'tape', 'task',
+                'taste', 'tax', 'tea', 'teach', 'teacher', 'team', 'tear', 'tell', 'ten', 'term',
+                'test', 'text', 'than', 'thank', 'that', 'the', 'theater', 'their', 'them', 'themselves',
+                'then', 'there', 'these', 'they', 'thick', 'thin', 'thing', 'think', 'third', 'this',
+                'those', 'though', 'thought', 'thousand', 'thread', 'three', 'throat', 'through', 'throw', 'thumb',
+                'thunder', 'Thursday', 'thus', 'tie', 'tiger', 'tight', 'till', 'time', 'tin', 'tiny',
+                'tip', 'tired', 'to', 'today', 'toe', 'together', 'toilet', 'tomato', 'tomorrow', 'ton',
+                'tone', 'tongue', 'tonight', 'too', 'tool', 'tooth', 'top', 'topic', 'total', 'touch',
+                'tough', 'toward', 'tower', 'town', 'toy', 'track', 'trade', 'train', 'travel', 'tree',
+                'trick', 'trip', 'trouble', 'truck', 'true', 'truly', 'trust', 'truth', 'try', 'tube',
+                'turn', 'twelve', 'twenty', 'twice', 'two', 'type', 'ugly', 'umbrella', 'uncle', 'under',
+                'unit', 'until', 'up', 'upon', 'us', 'use', 'used', 'useful', 'usually', 'valley',
+                'value', 'van', 'variety', 'various', 'vast', 'vegetable', 'very', 'victory', 'view', 'village',
+                'visit', 'voice', 'volume', 'wait', 'walk', 'wall', 'want', 'war', 'warm', 'wash',
+                'waste', 'watch', 'water', 'wave', 'way', 'we', 'weak', 'wear', 'weather', 'week',
+                'weight', 'welcome', 'well', 'west', 'wet', 'what', 'when', 'where', 'whether', 'which',
+                'while', 'white', 'who', 'whole', 'whom', 'whose', 'why', 'wide', 'wife', 'wild',
+                'will', 'win', 'wind', 'window', 'wine', 'wing', 'winter', 'wire', 'wise', 'wish',
+                'with', 'without', 'woman', 'women', 'wonder', 'wood', 'wool', 'word', 'work', 'world',
+                'worm', 'worry', 'worse', 'worst', 'worth', 'would', 'wound', 'write', 'writer', 'wrong',
+                'yard', 'year', 'yellow', 'yes', 'yesterday', 'yet', 'you', 'young', 'your', 'yours',
+                'yourself', 'yourselves', 'zoo', 'apple', 'bird', 'carrot', 'drum', 'elephant', 'flower', 'guitar', 'house',
+                'icecream', 'jungle', 'kite', 'lion', 'mountain', 'night', 'ocean', 'piano', 'queen', 'river',
+                'sun', 'table', 'umbrella', 'valley', 'wind', 'xylophone', 'zebra', 'abandon', 'ability', 'able',
+                'about', 'above', 'abroad', 'absence', 'absent', 'absolute', 'absolutely', 'absorb', 'abstract', 'abuse',
+                'academic', 'accept', 'accident', 'accompany', 'according', 'account', 'accurate', 'accuse', 'achieve', 'achievement',
+                'acid', 'acknowledge', 'acquaintance', 'acquire', 'across', 'act', 'action', 'active', 'activity', 'actor',
+                'actress', 'actual', 'actually', 'adapt', 'add', 'addition', 'additional', 'address', 'adequate', 'adjust',
+                'administration', 'admire', 'adult', 'advance', 'advantage', 'adventure', 'advertise', 'advice', 'advise', 'affair',
+                'affect', 'afford', 'afraid', 'after', 'afternoon', 'afterward', 'again', 'against', 'age', 'agency',
+                'agent', 'ago', 'agree', 'agreement', 'agriculture', 'ahead', 'aid', 'aim', 'air', 'airplane',
+                'airport', 'alarm', 'alcohol', 'alive', 'all', 'allow', 'almost', 'alone', 'along', 'aloud',
+                'alphabet', 'already', 'also', 'although', 'altitude', 'always', 'amazing', 'among', 'amount', 'amuse',
+                'analyze', 'ancient', 'and', 'anger', 'angle', 'angry', 'animal', 'announce', 'annual', 'another',
+                'answer', 'ant', 'anxiety', 'any', 'anybody', 'anyhow', 'anyone', 'anything', 'anyway', 'anywhere',
+                'apart', 'apartment', 'apology', 'appear', 'appearance', 'apple', 'application', 'apply', 'appoint', 'appreciate',
+                'approach', 'appropriate', 'approval', 'approve', 'area', 'argue', 'argument', 'arise', 'arm', 'army',
+                'around', 'arrange', 'arrangement', 'arrest', 'arrive', 'arrow', 'art', 'article', 'artificial', 'artist',
+                'as', 'ash', 'aside', 'ask', 'asleep', 'aspect', 'assess', 'asset', 'assign', 'assignment',
+                'assist', 'assistance', 'assistant', 'associate', 'association', 'assume', 'assumption', 'astonish', 'astronaut', 'astronomy',
+                'at', 'athlete', 'athletic', 'atmosphere', 'atom', 'attach', 'attack', 'attempt', 'attend', 'attention',
+                'attitude', 'attract', 'attraction', 'audience', 'audio', 'author', 'authority', 'auto', 'automatic', 'automobile',
+                'autumn', 'available', 'avenue', 'average', 'avoid', 'awake', 'aware', 'away', 'baby', 'back',
+                'background', 'bad', 'bag', 'balance', 'ball', 'bamboo', 'banana', 'band', 'bank', 'bar',
+                'bare', 'bargain', 'barrel', 'base', 'basic', 'basically', 'basket', 'bat', 'battle', 'be',
+                'beach', 'bear', 'beast', 'beat', 'beautiful', 'beauty', 'because', 'become', 'bed', 'bee',
+                'beef', 'beer', 'before', 'begin', 'beginning', 'behind', 'being', 'belief', 'believe', 'bell',
+                'belong', 'below', 'belt', 'bench', 'bend', 'beneath', 'beneficial', 'benefit', 'beside', 'besides',
+                'best', 'bet', 'better', 'between', 'beyond', 'bicycle', 'big', 'bill', 'billion', 'bind',
+                'bird', 'birth', 'birthday', 'bit', 'bite', 'bitter', 'black', 'blade', 'blame', 'blank',
+                'blanket', 'blast', 'bleed', 'bless', 'blind', 'block', 'blood', 'blow', 'blue', 'board',
+                'boat', 'body', 'boil', 'bomb', 'bone', 'book', 'boom', 'boot', 'border', 'boring',
+                'born', 'borrow', 'boss', 'both', 'bottle', 'bottom', 'bound', 'bowl', 'box', 'boy',
+                'brain', 'branch', 'brand', 'brave', 'bread', 'break', 'breakfast', 'breath', 'breathe', 'brick',
+                'bridge', 'brief', 'bright', 'bring', 'Britain', 'British', 'broad', 'broken', 'brother', 'brown',
+                'brush', 'bucket', 'build', 'building', 'bulb', 'bulk', 'bullet', 'bunch', 'bundle', 'burden',
+                'burn', 'burst', 'bus', 'business', 'busy', 'but', 'butter', 'button', 'buy', 'by',
+                'cabbage', 'cabin', 'cabinet', 'cable', 'cage', 'cake', 'call', 'calm', 'camera', 'camp',
+                'can', 'Canada', 'Canadian', 'canal', 'cancel', 'cancer', 'candidate', 'candle', 'candy', 'cap',
+                'capable', 'capacity', 'capital', 'captain', 'capture', 'car', 'carbon', 'card', 'care', 'career',
+                'careful', 'careless', 'carrot', 'carry', 'cart', 'case', 'cash', 'cast', 'cat', 'catch',
+                'category', 'cattle', 'cause', 'cave', 'ceiling', 'celebrate', 'cell', 'cement', 'center', 'central',
+                'century', 'ceremony', 'certain', 'certainly', 'chain', 'chair', 'chairman', 'chalk', 'challenge', 'champion',
+                'chance', 'change', 'channel', 'chapter', 'character', 'charge', 'chart', 'chase', 'chat', 'cheap',
+                'cheat', 'check', 'cheek', 'cheer', 'cheese', 'chemical', 'chemistry', 'chest', 'chew', 'chicken',
+                'chief', 'child', 'childhood', 'chimney', 'choice', 'choose', 'church', 'cigar', 'cigarette', 'cinema',
+                'circle', 'circuit', 'citizen', 'city', 'civil', 'civilization', 'claim', 'clap', 'clarify', 'class',
+                'classify', 'classmate', 'classroom', 'clean', 'clear', 'clearly', 'clerk', 'clever',
+            ])
+        };
+
+        // DOM 元素
+        const diceContainer = document.getElementById('dice-container');
+        const rollDiceBtn = document.getElementById('roll-dice');
+        const wordInput = document.getElementById('word-input');
+        const submitWordBtn = document.getElementById('submit-word');
+        const messageArea = document.getElementById('message-area');
+        const selectedLettersDisplay = document.getElementById('selected-letters-display');
+        const currentScoreDisplay = document.getElementById('current-score');
+        const wordsFoundDisplay = document.getElementById('words-found');
+        const wordList = document.getElementById('word-list');
+        const resetGameBtn = document.getElementById('reset-game');
+        const hintBtn = document.getElementById('hint-button');
+        const gameOverModal = document.getElementById('game-over-modal');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const finalWordsFoundDisplay = document.getElementById('final-words-found');
+        const playAgainBtn = document.getElementById('play-again');
+        const longestWordDisplay = document.getElementById('longest-word');
+        const highestScoreWordDisplay = document.getElementById('highest-score-word');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+
+        // 初始化游戏
+        function initGame() {
+            // 生成初始骰子
+            generateDice();
+            
+            // 绑定事件监听器
+            rollDiceBtn.addEventListener('click', rollDice);
+            submitWordBtn.addEventListener('click', submitWord);
+            resetGameBtn.addEventListener('click', resetGame);
+            hintBtn.addEventListener('click', showHint);
+            playAgainBtn.addEventListener('click', resetGame);
+            
+            // 禁用提交按钮直到用户掷骰子
+            wordInput.disabled = true;
+            submitWordBtn.disabled = true;
+        }
+
+        // 生成骰子
+        function generateDice() {
+            diceContainer.innerHTML = '';
+            
+            // 生成6个骰子
+            for (let i = 0; i < 6; i++) {
+                const die = document.createElement('div');
+                die.className = 'dice-face';
+                die.dataset.index = i;
+                
+                // 随机字母 (A-Z)
+                const letter = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+                
+                const letterElement = document.createElement('span');
+                letterElement.className = 'dice-letter';
+                letterElement.textContent = letter;
+                
+                die.appendChild(letterElement);
+                die.addEventListener('click', () => selectLetter(i));
+                diceContainer.appendChild(die);
+                
+                // 保存当前字母
+                gameState.currentLetters[i] = letter;
+            }
+        }
+
+        // 掷骰子
+        function rollDice() {
+            if (gameState.isRolling) return;
+            
+            gameState.isRolling = true;
+            rollDiceBtn.disabled = true;
+            wordInput.disabled = true;
+            submitWordBtn.disabled = true;
+            
+            // 添加骰子滚动动画
+            const dice = document.querySelectorAll('.dice-face');
+            dice.forEach(die => {
+                die.classList.add('dice-roll');
+            });
+            
+            // 随机化字母
+            setTimeout(() => {
+                dice.forEach((die, index) => {
+                    const letter = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+                    die.querySelector('.dice-letter').textContent = letter;
+                    gameState.currentLetters[index] = letter;
+                });
+                
+                // 重置选择
+                gameState.lettersUsed = [];
+                selectedLettersDisplay.textContent = '';
+                wordInput.value = '';
+                
+                // 启用输入
+                wordInput.disabled = false;
+                submitWordBtn.disabled = false;
+                
+                // 移除动画类
+                dice.forEach(die => {
+                    die.classList.remove('dice-roll');
+                });
+                
+                gameState.isRolling = false;
+                rollDiceBtn.disabled = false;
+                
+                // 显示消息
+                showMessage('请选择字母组成单词', 'info');
+            }, 800);
+        }
+
+        // 选择字母
+        function selectLetter(index) {
+            if (gameState.isRolling) return;
+            
+            const dice = document.querySelectorAll('.dice-face');
+            const selectedDie = dice[index];
+            
+            // 检查是否已选择
+            const isSelected = gameState.lettersUsed.includes(index);
+            
+            if (isSelected) {
+                // 取消选择
+                gameState.lettersUsed = gameState.lettersUsed.filter(i => i !== index);
+                selectedDie.classList.remove('border-secondary', 'bg-secondary/10');
+            } else {
+                // 选择字母
+                gameState.lettersUsed.push(index);
+                selectedDie.classList.add('border-secondary', 'bg-secondary/10');
+            }
+            
+            // 更新已选择字母显示
+            updateSelectedLetters();
+        }
+
+        // 更新已选择字母显示
+        function updateSelectedLetters() {
+            const letters = gameState.lettersUsed.map(index => gameState.currentLetters[index]);
+            selectedLettersDisplay.textContent = letters.join('');
+            wordInput.value = letters.join('').toLowerCase();
+        }
+
+        // 提交单词
+        function submitWord() {
+            const word = wordInput.value.trim().toLowerCase();
+            
+            // 验证单词
+            if (word.length < 3) {
+                showMessage('单词长度至少为3个字母', 'error');
+                return;
+            }
+            
+            // 检查是否使用了已选择的字母
+            const selectedLetters = gameState.lettersUsed.map(index => gameState.currentLetters[index].toLowerCase());
+            const wordLetters = word.split('');
+            
+            // 检查是否所有字母都来自选择的骰子
+            for (const letter of wordLetters) {
+                const index = selectedLetters.indexOf(letter);
+                if (index === -1) {
+                    showMessage('单词中包含未选择的字母', 'error');
+                    return;
+                }
+                // 从可选字母中移除已使用的字母
+                selectedLetters.splice(index, 1);
+            }
+            
+            // 检查是否是有效单词
+            if (!gameState.dictionary.has(word)) {
+                showMessage('不是有效的英文单词', 'error');
+                return;
+            }
+            
+            // 检查是否已找到过
+            if (gameState.wordsFound.includes(word)) {
+                showMessage('这个单词已经找到过了', 'error');
+                return;
+            }
+            
+            // 添加到已找到单词列表
+            gameState.wordsFound.push(word);
+            
+            // 计算得分
+            const wordScore = word.length;
+            gameState.score += wordScore;
+            
+            // 更新最长单词和最高得分单词
+            if (word.length > (gameState.longestWord.length || 0)) {
+                gameState.longestWord = word;
+                longestWordDisplay.textContent = word;
+            }
+            
+            if (wordScore > (gameState.highestScoreWord.length || 0)) {
+                gameState.highestScoreWord = word;
+                highestScoreWordDisplay.textContent = word;
+            }
+            
+            // 更新UI
+            updateScoreDisplay();
+            addWordToList(word, wordScore);
+            
+            // 重置选择
+            resetLetterSelection();
+            
+            // 显示成功消息
+            showMessage(`恭喜！你找到了单词 "${word}"，获得 ${wordScore} 分！`, 'success');
+            
+            // 检查游戏是否结束（假设找到10个单词结束）
+            if (gameState.wordsFound.length >= 10) {
+                endGame();
+            } else {
+                // 更新进度条
+                const progress = (gameState.wordsFound.length / 10) * 100;
+                progressBar.style.width = `${progress}%`;
+                progressText.textContent = `${progress}%`;
+            }
+        }
+
+        // 更新分数显示
+        function updateScoreDisplay() {
+            currentScoreDisplay.textContent = gameState.score;
+            wordsFoundDisplay.textContent = gameState.wordsFound.length;
+        }
+
+        // 添加单词到列表
+        function addWordToList(word, score) {
+            if (wordList.querySelector('p.italic')) {
+                wordList.innerHTML = '';
+            }
+            
+            const wordItem = document.createElement('div');
+            wordItem.className = 'word-list-item';
+            wordItem.innerHTML = `
+                <span class="font-bold">${word.toUpperCase()}</span>
+                <span class="bg-secondary/20 text-secondary px-2 py-1 rounded-full text-sm">${score} 分</span>
+            `;
+            
+            wordList.appendChild(wordItem);
+            wordItem.classList.add('bounce-in');
+            
+            // 移除动画类以便下次使用
+            setTimeout(() => {
+                wordItem.classList.remove('bounce-in');
+            }, 500);
+        }
+
+        // 重置字母选择
+        function resetLetterSelection() {
+            gameState.lettersUsed = [];
+            const dice = document.querySelectorAll('.dice-face');
+            dice.forEach(die => {
+                die.classList.remove('border-secondary', 'bg-secondary/10');
+            });
+            selectedLettersDisplay.textContent = '';
+            wordInput.value = '';
+        }
+
+        // 显示消息
+        function showMessage(message, type = 'info') {
+            messageArea.textContent = message;
+            messageArea.className = `p-3 rounded-lg mb-2 text-center fade-in`;
+            
+            switch (type) {
+                case 'success':
+                    messageArea.classList.add('bg-success/20', 'text-success');
+                    break;
+                case 'error':
+                    messageArea.classList.add('bg-error/20', 'text-error');
+                    break;
+                case 'info':
+                    messageArea.classList.add('bg-info/20', 'text-info');
+                    break;
+            }
+            
+            messageArea.classList.remove('hidden');
+            
+            // 3秒后隐藏消息
+            setTimeout(() => {
+                messageArea.classList.add('hidden');
+            }, 3000);
+        }
+
+        // 重置游戏
+        function resetGame() {
+            // 重置游戏状态
+            gameState.score = 0;
+            gameState.wordsFound = [];
+            gameState.lettersUsed = [];
+            gameState.longestWord = '';
+            gameState.highestScoreWord = '';
+            gameState.gamesPlayed++;
+            
+            // 更新UI
+            updateScoreDisplay();
+            wordList.innerHTML = '<p class="text-gray-500 italic text-center">还没有找到任何单词</p>';
+            longestWordDisplay.textContent = '-';
+            highestScoreWordDisplay.textContent = '-';
+            progressBar.style.width = '0%';
+            progressText.textContent = '0%';
+            
+            // 隐藏游戏结束弹窗
+            gameOverModal.classList.add('hidden');
+            
+            // 重置骰子
+            resetLetterSelection();
+            generateDice();
+            
+            // 禁用提交按钮直到用户掷骰子
+            wordInput.disabled = true;
+            submitWordBtn.disabled = true;
+            
+            // 显示欢迎消息
+            showMessage('新游戏开始！请点击"掷骰子"按钮开始游戏', 'info');
+        }
+
+        // 显示提示
+        function showHint() {
+            if (gameState.currentLetters.length === 0) {
+                showMessage('请先掷骰子', 'info');
+                return;
+            }
+            
+            // 从当前字母中寻找可能的单词
+            const currentLettersLower = gameState.currentLetters.map(l => l.toLowerCase());
+            const possibleWords = Array.from(gameState.dictionary).filter(word => {
+                if (word.length < 3) return false;
+                
+                const letters = [...currentLettersLower];
+                for (const char of word) {
+                    const index = letters.indexOf(char);
+                    if (index === -1) return false;
+                    letters.splice(index, 1);
+                }
+                return true;
+            });
+            
+            if (possibleWords.length === 0) {
+                showMessage('没有找到可能的单词，再试一次吧！', 'info');
+                return;
+            }
+            
+            // 从可能的单词中随机选择一个作为提示
+            const hint = possibleWords[Math.floor(Math.random() * possibleWords.length)];
+            
+            // 部分显示提示（例如显示第一个字母和长度）
+            const maskedHint = hint.charAt(0) + '*'.repeat(hint.length - 1);
+            showMessage(`提示：有一个单词以 "${maskedHint.charAt(0).toUpperCase()}" 开头，长度为 ${hint.length} 个字母`, 'info');
+        }
+
+        // 游戏结束
+        function endGame() {
+            // 更新最终得分
+            finalScoreDisplay.textContent = gameState.score;
+            finalWordsFoundDisplay.textContent = gameState.wordsFound.length;
+            
+            // 显示游戏结束弹窗
+            gameOverModal.classList.remove('hidden');
+        }
+
+        // 页面加载完成后初始化游戏
+        document.addEventListener('DOMContentLoaded', initGame);
+    </script>
+</body>
+</html>
